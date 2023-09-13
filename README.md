@@ -3,7 +3,7 @@
 
  # Arquiterura da aplicação
 
-  ![alt text](./img/Arquitetura-AWS.drawio.png)
+  ![alt text](./img/Arquitetura-AWS.drawio(1).png)
  
  # Configurando o ambiente para a execução do Projeto
  Para rodar a aplicação  você primeiramente precisa ter uma conta ativa na Plataforma Amazon Aws.
