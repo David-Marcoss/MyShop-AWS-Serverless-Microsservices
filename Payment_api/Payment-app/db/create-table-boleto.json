@@ -1,0 +1,15 @@
+{
+    "TableName": "BoletoTable",
+    "KeySchema": [
+    { "AttributeName": "id", "KeyType": "HASH" },
+    {"AttributeName": "user", "KeyType": "RANGE"}
+    ],
+    "AttributeDefinitions": [
+    { "AttributeName": "id", "AttributeType": "S" },
+    { "AttributeName": "user", "AttributeType": "S" }
+    ],
+    "ProvisionedThroughput": {
+    "ReadCapacityUnits": 1,
+    "WriteCapacityUnits": 1
+    }
+}

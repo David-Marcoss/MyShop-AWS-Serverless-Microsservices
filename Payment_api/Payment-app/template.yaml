@@ -1,0 +1,121 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Payment-app
+
+  Sample SAM Template for Payment-app
+
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Timeout: 3
+    MemorySize: 128
+
+
+Parameters:
+  TABLEBOLETO:
+    Type: String
+    Description: The DynamoDB table for storing Boleto information.
+    Default: 'BoletoTable'
+
+  REGIONNAME:
+    Type: String
+    Description: Default region for deployment.
+    Default: 'us-east-1'
+
+  AWSENVNAME:
+    Type: String
+    Description: AWS Environment where code is being executed (AWS_SAM_LOCAL or AWS).
+    Default: 'AWS_SAM_LOCAL'
+  
+  DBLOCALURL:
+    Type: String
+    Description: AWS Environment where code is being executed (AWS_SAM_LOCAL or AWS).
+    Default: 'http://172.18.0.1:8002'
+ 
+
+Resources:
+  BoletoTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Ref TABLEBOLETO
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+        - AttributeName: user
+          AttributeType: S
+      KeySchema: 
+        - AttributeName: id
+          KeyType: HASH
+        - AttributeName: user
+          KeyType: RANGE
+      ProvisionedThroughput: 
+        ReadCapacityUnits: 1
+        WriteCapacityUnits: 1
+
+  PaymentTicketFunction:
+    Type: "AWS::Serverless::Function"
+    Properties:
+      Runtime: python3.9
+      Handler: app.lambda_handler
+      CodeUri: ./src/PaymentTicketFunction/
+      MemorySize: 128
+      Timeout: 300
+      Policies: AmazonDynamoDBFullAccess
+      Environment:
+        Variables:
+          TABLE: !Ref TABLEBOLETO
+          REGION: !Ref REGIONNAME
+          AWSENV: !Ref AWSENVNAME
+          DBLOCALURL: !Ref DBLOCALURL
+
+      Events:
+        Payment:
+          Type: Api
+          Properties:
+            Path: /Payment/payment-ticket/
+            Method: post
+  
+  GetPaymentsFunction:
+    Type: "AWS::Serverless::Function"
+    Properties:
+      Runtime: python3.9
+      Handler: app.lambda_handler
+      CodeUri: ./src/GetPaymentsFunction/
+      MemorySize: 128
+      Timeout: 300
+      Policies: AmazonDynamoDBFullAccess
+      Environment:
+        Variables:
+          TABLE: !Ref TABLEBOLETO
+          REGION: !Ref REGIONNAME
+          AWSENV: !Ref AWSENVNAME
+          DBLOCALURL: !Ref DBLOCALURL
+
+      Events:
+        Payment:
+          Type: Api
+          Properties:
+            Path: /Payment/get-payments/
+            Method: get
+Outputs:
+  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
+  # Find out more about other implicit resources you can reference within SAM
+  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
+  PaymentApi:
+    Description: "API Gateway endpoint URL for Prod stage for Hello World function"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/Payment/"
+  
+  PaymentTicketFunction:
+    Description: "Paymen tTicket Lambda Function ARN"
+    Value: !GetAtt PaymentTicketFunction.Arn
+  PaymentTicketFunctionIamRole:
+    Description: "Implicit IAM Role created for Payment Ticket Function"
+    Value: !GetAtt PaymentTicketFunctionRole.Arn
+
+  GetPaymentsFunction:
+      Description: "GetPaymentsFunction Lambda Function ARN"
+      Value: !GetAtt GetPaymentsFunction.Arn
+  GetPaymentsFunctionIamRole:
+      Description: "Implicit IAM Role created for Payment Ticket Function"
+      Value: !GetAtt GetPaymentsFunctionRole.Arn

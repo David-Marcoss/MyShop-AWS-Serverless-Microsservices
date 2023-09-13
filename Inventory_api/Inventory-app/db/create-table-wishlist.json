@@ -1,0 +1,30 @@
+{
+    "TableName": "WishlistTable",
+    "KeySchema": [
+    { "AttributeName": "id", "KeyType": "HASH" },
+    {"AttributeName": "user", "KeyType": "RANGE"}
+    ],
+    "AttributeDefinitions": [
+    { "AttributeName": "id", "AttributeType": "S" },
+    { "AttributeName": "user", "AttributeType": "S" }
+    ],
+    "ProvisionedThroughput": {
+    "ReadCapacityUnits": 1,
+    "WriteCapacityUnits": 1
+    },
+    "GlobalSecondaryIndexes":[
+      {
+        "IndexName": "user-index",
+        "KeySchema": [ 
+          {"AttributeName": "user", "KeyType": "HASH"}],
+        "Projection": {"ProjectionType": "INCLUDE",
+                       "NonKeyAttributes":["product","valor","quantidade"]},
+        "ProvisionedThroughput": {
+          "ReadCapacityUnits": 1,
+          "WriteCapacityUnits": 1
+          }
+      
+      }
+      
+  ]
+}

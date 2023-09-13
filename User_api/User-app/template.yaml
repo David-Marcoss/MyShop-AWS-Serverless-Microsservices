@@ -1,0 +1,314 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  User-app
+
+  Sample SAM Template for User-app
+
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Timeout: 3
+    MemorySize: 128
+Parameters:
+  TABLEUSER:
+    Type: String
+    Description: The DynamoDB table for storing User information.
+    Default: 'UserTable'
+  
+  TABLEBUYS:
+    Type: String
+    Description: The DynamoDB table for storing User information.
+    Default: 'BuysUserTable'
+
+  REGIONNAME:
+    Type: String
+    Description: Default region for deployment.
+    Default: 'us-east-1'
+
+  AWSENVNAME:
+    Type: String
+    Description: AWS Environment where code is being executed (AWS_SAM_LOCAL or AWS).
+    Default: 'AWS_SAM_LOCAL'
+  
+  #ip privado para conexão com db local
+  DBLOCALURL:
+    Type: String
+    Description: AWS Environment where code is being executed (AWS_SAM_LOCAL or AWS).
+    Default: 'http://172.18.0.1:8001'
+
+  INVENTORYAPIURL:
+    Type: String
+    Description: AWS Environment where code is being executed (AWS_SAM_LOCAL or AWS).
+    Default: 'http://127.0.0.1:3000'
+  
+
+Resources:
+  UserTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Ref TABLEUSER
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema: 
+        - AttributeName: id
+          KeyType: HASH
+      ProvisionedThroughput: 
+        ReadCapacityUnits: 1
+        WriteCapacityUnits: 1
+  
+  BuysUserTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Ref TABLEBUYS
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+        - AttributeName: user
+          AttributeType: S
+      KeySchema: 
+        - AttributeName: id
+          KeyType: HASH
+        - AttributeName: user
+          KeyType: RANGE
+      ProvisionedThroughput: 
+        ReadCapacityUnits: 1
+        WriteCapacityUnits: 1
+      GlobalSecondaryIndexes:
+      - IndexName: user-index
+        KeySchema:
+        - AttributeName: user
+          KeyType: HASH
+        Projection:
+          NonKeyAttributes:
+              - product
+              - valor
+              - quantidade
+          ProjectionType: INCLUDE
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+
+
+  CreateUserFunction:
+    Type: "AWS::Serverless::Function"
+    Properties:
+      Runtime: python3.9
+      Handler: app.lambda_handler
+      CodeUri: ./src/CreateUserFunction/
+      MemorySize: 128
+      Timeout: 300
+      Policies: AmazonDynamoDBFullAccess
+      Environment:
+        Variables:
+          TABLE: !Ref TABLEUSER
+          REGION: !Ref REGIONNAME
+          AWSENV: !Ref AWSENVNAME
+          DBLOCALURL: !Ref DBLOCALURL
+
+      Events:
+        CreateUser:
+          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+          Properties:
+            Path: /User/create-user/
+            Method: post
+  
+  GetUsersFunction:
+    Type: "AWS::Serverless::Function"
+    Properties:
+      Runtime: python3.9
+      Handler: app.lambda_handler
+      CodeUri: ./src/GetUsersFunction/
+      MemorySize: 128
+      Timeout: 300
+      Policies: AmazonDynamoDBFullAccess
+      Environment:
+        Variables:
+          TABLE: !Ref TABLEUSER
+          REGION: !Ref REGIONNAME
+          AWSENV: !Ref AWSENVNAME
+          DBLOCALURL: !Ref DBLOCALURL
+
+      Events:
+        GetUser:
+          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+          Properties:
+            Path: /User/get-user/
+            Method: get
+        
+        GetUsers:
+          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+          Properties:
+            Path: /User/get-users/
+            Method: get
+
+  BuyProductFunction:
+    Type: "AWS::Serverless::Function"
+    Properties:
+      Runtime: python3.9
+      Handler: app.lambda_handler
+      CodeUri: ./src/BuyProductFunction/
+      MemorySize: 128
+      Timeout: 300
+      Policies: AmazonDynamoDBFullAccess
+      Environment:
+        Variables:
+          TABLE: !Ref TABLEBUYS
+          REGION: !Ref REGIONNAME
+          AWSENV: !Ref AWSENVNAME
+          DBLOCALURL: !Ref DBLOCALURL
+          INVENTORYAPIURL: !Ref INVENTORYAPIURL
+
+      Events:
+        BuyProduct:
+          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+          Properties:
+            Path: /User/buyproduct/
+            Method: post
+  
+  GetProductsFunction:
+    Type: "AWS::Serverless::Function"
+    Properties:
+      Runtime: python3.9
+      Handler: app.lambda_handler
+      CodeUri: ./src/GetProductsFunction/
+      MemorySize: 128
+      Timeout: 300
+      Environment:
+        Variables:
+          INVENTORYAPIURL: !Ref INVENTORYAPIURL
+          
+      Events:
+        GetProducts:
+          Type: Api 
+          Properties:
+            Path: /User/get-products/
+            Method: get
+  
+
+  GetBuysFunction:
+    Type: "AWS::Serverless::Function"
+    Properties:
+      Runtime: python3.9
+      Handler: app.lambda_handler
+      CodeUri: ./src/GetBuysFunction/
+      MemorySize: 128
+      Timeout: 300
+      Policies: AmazonDynamoDBFullAccess
+      Environment:
+        Variables:
+          TABLE: !Ref TABLEBUYS
+          REGION: !Ref REGIONNAME
+          AWSENV: !Ref AWSENVNAME
+          DBLOCALURL: !Ref DBLOCALURL
+
+      Events:
+        GetBuysUser:
+          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+          Properties:
+            Path: /User/get-buys-user/
+            Method: get
+        
+        GetAllBuys:
+          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+          Properties:
+            Path: /User/get-all-buys/
+            Method: get
+  
+  AddProductswishlistFunction:
+    Type: "AWS::Serverless::Function"
+    Properties:
+      Runtime: python3.9
+      Handler: app.lambda_handler
+      CodeUri: ./src/AddProductswishlistFunction/
+      MemorySize: 128
+      Timeout: 300
+      Environment:
+        Variables:
+          INVENTORYAPIURL: !Ref INVENTORYAPIURL
+
+      Events:
+        AddProductsWishlist:
+          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+          Properties:
+            Path: /User/Add-products-wishlist/
+            Method: post
+  
+  GetProductswishlistFunction:
+    Type: "AWS::Serverless::Function"
+    Properties:
+      Runtime: python3.9
+      Handler: app.lambda_handler
+      CodeUri: ./src/GetProductswishlistFunction/
+      MemorySize: 128
+      Timeout: 300
+      Environment:
+        Variables:
+          INVENTORYAPIURL: !Ref INVENTORYAPIURL
+
+      Events:
+        GetProductsWishlist:
+          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+          Properties:
+            Path: /User/get-products-wishlist/
+            Method: get
+  
+        
+        
+Outputs:
+  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
+  # Find out more about other implicit resources you can reference within SAM
+  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
+  UserApi:
+    Description: "API Gateway endpoint URL for Prod stage for User Api function"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/User-api/"
+  
+  CreateUserFunction:
+    Description: "Create user Lambda Function ARN"
+    Value: !GetAtt CreateUserFunction.Arn
+  CreateUserFunctionIamRole:
+    Description: "Implicit IAM Role created for Create user function"
+    Value: !GetAtt CreateUserFunctionRole.Arn
+
+  GetUsersFunction:
+    Description: "Get user Lambda Function ARN"
+    Value: !GetAtt GetUsersFunction.Arn
+  GetUsersFunctionIamRole:
+    Description: "Implicit IAM Role created for Get user function"
+    Value: !GetAtt GetUsersFunctionRole.Arn
+  
+  GetProductsFunction:
+    Description: "Get products Lambda Function ARN"
+    Value: !GetAtt GetProductsFunction.Arn
+  GetProductsFunctionIamRole:
+    Description: "Implicit IAM Role created for Get products function"
+    Value: !GetAtt GetProductsFunctionRole.Arn
+  
+  GetBuysFunction:
+    Description: "Get buys Lambda Function ARN"
+    Value: !GetAtt GetBuysFunction.Arn
+  GetBuysFunctionIamRole:
+    Description: "Implicit IAM Role created for Get buys function"
+    Value: !GetAtt GetBuysFunctionRole.Arn
+  
+  BuyProductFunction:
+    Description: "Buy Product Lambda Function ARN"
+    Value: !GetAtt BuyProductFunction.Arn
+  BuyProductFunctionIamRole:
+    Description: "Implicit IAM Role created for BuyProduct Function function"
+    Value: !GetAtt BuyProductFunctionRole.Arn
+  
+  AddProductswishlistFunction:
+    Description: "AddProductswishlist Lambda Function ARN"
+    Value: !GetAtt AddProductswishlistFunction.Arn
+  AddProductswishlistFunctionIamRole:
+    Description: "Implicit IAM Role created for Add Products wishlist function"
+    Value: !GetAtt AddProductswishlistFunctionRole.Arn
+
+  GetProductswishlistFunction:
+    Description: "Get Product swishlist Lambda Function ARN"
+    Value: !GetAtt GetProductswishlistFunction.Arn
+  GetProductswishlistFunctionIamRole:
+    Description: "Implicit IAM Role created for Products wishlist function"
+    Value: !GetAtt GetProductswishlistFunctionRole.Arn

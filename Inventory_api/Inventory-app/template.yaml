@@ -1,0 +1,263 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Inventory-app
+
+  Sample SAM Template for Inventory-app
+
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Timeout: 3
+    MemorySize: 128
+
+Parameters:
+  TABLEPRODUCT:
+    Type: String
+    Description: The DynamoDB table for storing Products information.
+    Default: 'ProductsTable'
+
+  TABLEWISHLIST:
+    Type: String
+    Description: The DynamoDB table for storing Buys information.
+    Default: 'WishlistTable'
+
+  REGIONNAME:
+    Type: String
+    Description: Default region for deployment.
+    Default: 'us-east-1'
+
+  AWSENVNAME:
+    Type: String
+    Description: AWS Environment where code is being executed (AWS_SAM_LOCAL or AWS).
+    Default: 'AWS_SAM_LOCAL'
+  #ip privado para conexão com db local
+  DBLOCALURL:
+    Type: String
+    Description: AWS Environment where code is being executed (AWS_SAM_LOCAL or AWS).
+    Default: 'http://172.18.0.1:8000'
+   
+  INVENTORYAPIURL:
+    Type: String
+    Description: AWS Environment where code is being executed (AWS_SAM_LOCAL or AWS).
+    Default: 'http://127.0.0.1:3002'
+
+
+Resources:
+  ProductsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Ref TABLEPRODUCT
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema: 
+        - AttributeName: id
+          KeyType: HASH
+      ProvisionedThroughput: 
+        ReadCapacityUnits: 1
+        WriteCapacityUnits: 1
+  
+  WishlistTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Ref TABLEWISHLIST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+        - AttributeName: user
+          AttributeType: S
+      KeySchema: 
+        - AttributeName: id
+          KeyType: HASH
+        - AttributeName: user
+          KeyType: RANGE
+      ProvisionedThroughput: 
+        ReadCapacityUnits: 1
+        WriteCapacityUnits: 1
+      GlobalSecondaryIndexes:
+      - IndexName: user-index
+        KeySchema:
+        - AttributeName: user
+          KeyType: HASH
+        Projection:
+          NonKeyAttributes:
+              - product
+              - valor
+              - quantidade
+          ProjectionType: INCLUDE
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+
+
+  AddProductsFunction:
+    Type: "AWS::Serverless::Function"
+    Properties:
+      Runtime: python3.9
+      Handler: app.lambda_handler
+      CodeUri: ./src/AddProductFunction/
+      MemorySize: 128
+      Timeout: 300
+      Policies: AmazonDynamoDBFullAccess
+      Environment:
+        Variables:
+          TABLE: !Ref TABLEPRODUCT
+          REGION: !Ref REGIONNAME
+          AWSENV: !Ref AWSENVNAME
+          DBLOCALURL: !Ref DBLOCALURL
+
+      Events:
+        Addproducts:
+          Type: Api
+          Properties:
+            Path: /inventory/add-products/
+            Method: POST
+        
+        AddListproducts:
+          Type: Api
+          Properties:
+            Path: /inventory/add-list-products/
+            Method: POST
+        
+
+  GetProductsFunction:
+    Type: "AWS::Serverless::Function"
+    Properties:
+      Runtime: python3.9
+      Handler: app.lambda_handler
+      CodeUri: ./src/GetProductsFunction/
+      MemorySize: 128
+      Timeout: 300
+      Policies: AmazonDynamoDBFullAccess
+      Environment:
+        Variables:
+          TABLE: !Ref TABLEPRODUCT
+          REGION: !Ref REGIONNAME
+          AWSENV: !Ref AWSENVNAME
+          DBLOCALURL: !Ref DBLOCALURL
+
+      Events:
+        GetProducts:
+          Type: Api
+          Properties:
+            Path: /inventory/get-products/
+            Method: GET
+        
+        GetProduct:
+          Type: Api
+          Properties:
+            Path: /inventory/get-product/
+            Method: GET
+    
+  BuyProductsFunction:
+    Type: "AWS::Serverless::Function"
+    Properties:
+      Runtime: python3.9
+      Handler: app.lambda_handler
+      CodeUri: ./src/BuyProductFunction/
+      MemorySize: 128
+      Timeout: 300
+      Policies: AmazonDynamoDBFullAccess
+      Environment:
+        Variables:
+          TABLE: !Ref TABLEPRODUCT
+          REGION: !Ref REGIONNAME
+          AWSENV: !Ref AWSENVNAME
+          DBLOCALURL: !Ref DBLOCALURL
+          INVENTORYAPIURL: !Ref INVENTORYAPIURL
+
+      Events:
+        Buyproducts:
+          Type: Api
+          Properties:
+            Path: /inventory/buy-product/
+            Method: POST
+
+  AddProductwishlistFunction:
+    Type: "AWS::Serverless::Function"
+    Properties:
+      Runtime: python3.9
+      Handler: app.lambda_handler
+      CodeUri: ./src/AddProductwishlistFunction/
+      MemorySize: 128
+      Timeout: 300
+      Policies: AmazonDynamoDBFullAccess
+      Environment:
+        Variables:
+          TABLE: !Ref TABLEWISHLIST
+          REGION: !Ref REGIONNAME
+          AWSENV: !Ref AWSENVNAME
+          DBLOCALURL: !Ref DBLOCALURL
+
+      Events:
+        Addwishlist:
+          Type: Api
+          Properties:
+            Path: /inventory/add-product-wishlist/
+            Method: POST
+  
+  GetProductswishlistFunction:
+    Type: "AWS::Serverless::Function"
+    Properties:
+      Runtime: python3.9
+      Handler: app.lambda_handler
+      CodeUri: ./src/GetProductswishlistFunction/
+      MemorySize: 128
+      Timeout: 300
+      Policies: AmazonDynamoDBFullAccess
+      Environment:
+        Variables:
+          TABLE: !Ref TABLEWISHLIST
+          REGION: !Ref REGIONNAME
+          AWSENV: !Ref AWSENVNAME
+          DBLOCALURL: !Ref DBLOCALURL
+
+      Events:
+        Getwishlist:
+          Type: Api
+          Properties:
+            Path: /inventory/get-product-wishlist/
+            Method: post
+        
+Outputs:
+  
+  InventoryApi:
+    Description: "API Gateway endpoint URL for Prod stage for Inventory functions"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/products/"
+  
+  AddProductsFunction:
+    Description: "AddProducts Lambda Function ARN"
+    Value: !GetAtt AddProductsFunction.Arn
+  AddProductsFunctionIamRole:
+    Description: "Implicit IAM Role created for AddProductsFunction"
+    Value: !GetAtt AddProductsFunctionRole.Arn
+  
+  GetProductsFunction:
+    Description: "GetProducts Lambda Function ARN"
+    Value: !GetAtt GetProductsFunction.Arn
+  GetProductsFunctionIamRole:
+    Description: "Implicit IAM Role created for GetProductsFunction"
+    Value: !GetAtt GetProductsFunctionRole.Arn
+
+  BuyProductsFunction:
+    Description: "BuyProducts Lambda Function ARN"
+    Value: !GetAtt BuyProductsFunction.Arn
+  BuyProductsFunctionIamRole:
+    Description: "Implicit IAM Role created for BuyProductsFunction"
+    Value: !GetAtt BuyProductsFunctionRole.Arn
+  
+  AddProductwishlistFunction:
+    Description: "AddProductwishlist Lambda Function ARN"
+    Value: !GetAtt AddProductwishlistFunction.Arn
+  AddProductwishlistFunctionIamRole:
+    Description: "Implicit IAM Role created for AddProductwishlistFunction"
+    Value: !GetAtt AddProductwishlistFunctionRole.Arn
+  
+  GetProductswishlistFunction:
+    Description: "GetProductswishlist Lambda Function ARN"
+    Value: !GetAtt GetProductswishlistFunction.Arn
+  GetProductswishlistFunctionIamRole:
+    Description: "Implicit IAM Role created for GetProductswishlistFunction"
+    Value: !GetAtt GetProductswishlistFunctionRole.Arn
+  
